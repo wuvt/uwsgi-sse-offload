@@ -250,6 +250,7 @@ The folowing keys are available:
 
 * `server` (the redis server address, unix sockets are supported too)
 * `subscribe` (the channel to subscribe to)
+* `password` (the password for the redis server, optional)
 * `buffer_size` (the buffer size for the response, default 4k, tune it only if you need to stream big messages for which having a bigger buffer could result in better performance)
 
 

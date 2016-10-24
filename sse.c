@@ -7,6 +7,7 @@ struct uwsgi_offload_engine *sse_redis_offload_engine;
 static void sse_offload_destroy_config_do(struct sse_offload_config *soc) {
 	if (soc->server) free(soc->server);
 	if (soc->subscribe) free(soc->subscribe);
+	if (soc->password) free(soc->password);
 	if (soc->buffer_size_str) free(soc->buffer_size_str);
 	free(soc);
 }
@@ -21,6 +22,9 @@ static int sse_redis_offload(struct wsgi_request *wsgi_req, struct sse_offload_c
 	if (!soc->server) {
                 soc->server = uwsgi_str("127.0.0.1:6379");
         }
+        if (!soc->password) {
+                soc->password = uwsgi_str("");
+        }
 	if (soc->buffer_size_str) {
 		soc->buffer_size = atoi(soc->buffer_size_str);
 	}
@@ -30,7 +34,14 @@ static int sse_redis_offload(struct wsgi_request *wsgi_req, struct sse_offload_c
 	uor.data = soc;
 	uor.name = soc->server;
 	uor.ubuf = uwsgi_buffer_new(uwsgi.page_size);
-	if (uwsgi_buffer_append(uor.ubuf, "*2\r\n$9\r\nSUBSCRIBE\r\n$", 20)) goto error;
+        if (strlen(soc->password) > 0) {
+                if (uwsgi_buffer_append(uor.ubuf, "*2\r\n$4\r\nAUTH\r\n$", 15)) goto error;
+                if (uwsgi_buffer_num64(uor.ubuf, strlen(soc->password))) goto error;
+                if (uwsgi_buffer_append(uor.ubuf, "\r\n", 2)) goto error;
+                if (uwsgi_buffer_append(uor.ubuf, soc->password, strlen(soc->password))) goto error;
+                if (uwsgi_buffer_append(uor.ubuf, "\r\n", 2)) goto error;
+        }
+        if (uwsgi_buffer_append(uor.ubuf, "*2\r\n$9\r\nSUBSCRIBE\r\n$", 20)) goto error;
         if (uwsgi_buffer_num64(uor.ubuf, strlen(soc->subscribe))) goto error;
         if (uwsgi_buffer_append(uor.ubuf, "\r\n", 2)) goto error;
         if (uwsgi_buffer_append(uor.ubuf, soc->subscribe, strlen(soc->subscribe))) goto error;
@@ -60,6 +71,7 @@ static int sse_router_func(struct wsgi_request *wsgi_req, struct uwsgi_route *ur
                 if (uwsgi_kvlist_parse(ub->buf, ub->pos, ',', '=',
                         "server", &soc->server,
                         "subscribe", &soc->subscribe,
+                        "password", &soc->password,
                         "buffer_size", &soc->buffer_size_str,
                         NULL)) {
                         uwsgi_log("[sse_offload] unable to parse sse action\n");

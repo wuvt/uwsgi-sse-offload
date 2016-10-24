@@ -146,6 +146,17 @@ static ssize_t _redis_pubsub(char *buf, size_t len, int64_t *n, char **str) {
 	*n = 0;
 	if (len == 0) return 0;
 	char *ptr = buf;
+        // handle auth reply
+        if (*ptr == '+') {
+                ptr++;
+                if (len < 6) return 0;
+                if (*ptr != 'O') return -1;
+                ptr++;
+                if (*ptr != 'K') return -1;
+                // add 3 to account for \r\n
+                ptr += 3;
+                len -= 5;
+        }
 	if (*ptr != '*') return -1;
 	ptr++;
         len--;

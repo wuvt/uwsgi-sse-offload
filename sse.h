@@ -5,6 +5,7 @@
 struct sse_offload_config {
 	char *server;
 	char *subscribe;
+	char *password;
 	char *buffer_size_str;
 	size_t buffer_size;
 };
